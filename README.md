@@ -1,4 +1,4 @@
-# Flask + MongoDB Kubernetes Deployment  
+# Flask + MongoDB Kubernetes Deployment
 Assignment Submission – Arpit Thakur
 
 ## 1. Project Overview
@@ -12,7 +12,7 @@ The Flask application exposes two endpoints:
 | `/` | Returns a welcome message with current server time |
 | `/data` | POST inserts JSON data, GET retrieves stored data |
 
-MongoDB is deployed with authentication enabled and persistent volume storage. Flask is deployed as a scalable application using Kubernetes Horizontal Pod Autoscaler (HPA). DNS-based service discovery ensures inter-pod communication without IP dependency.
+MongoDB is deployed with authentication enabled and persistent volume storage. The Flask application is deployed as a scalable application using Kubernetes Horizontal Pod Autoscaler (HPA). DNS-based service discovery ensures inter-pod communication without depending on IP addresses.
 
 ---
 
@@ -40,47 +40,47 @@ Copy code
 ## 3. Docker Image Build and Push Instructions
 
 Build Docker image:
-```bash
+```sh
 docker build -t kapil0321/flask-mongodb-app:latest .
 Login to Docker Hub:
 
-bash
+sh
 Copy code
 docker login
 Push image:
 
-bash
+sh
 Copy code
 docker push kapil0321/flask-mongodb-app:latest
 4. Kubernetes Deployment Guide
 Start Minikube:
 
-bash
+sh
 Copy code
 minikube start --driver=docker
 Enable metrics server:
 
-bash
+sh
 Copy code
 minikube addons enable metrics-server
-Deploy MongoDB:
+Deploy MongoDB resources:
 
-bash
+sh
 Copy code
 kubectl apply -f k8s/mongo-secret.yaml
 kubectl apply -f k8s/mongo-pv-pvc.yaml
 kubectl apply -f k8s/mongo-statefulset.yaml
 kubectl apply -f k8s/mongo-service.yaml
-Deploy Flask Application:
+Deploy Flask application:
 
-bash
+sh
 Copy code
 kubectl apply -f k8s/flask-deployment.yaml
 kubectl apply -f k8s/flask-service.yaml
 kubectl apply -f k8s/flask-hpa.yaml
-Verify:
+Verify deployments:
 
-bash
+sh
 Copy code
 kubectl get pods
 kubectl get svc
@@ -89,87 +89,90 @@ kubectl get hpa
 5. Accessing the Application
 Expose the Flask service:
 
-bash
+sh
 Copy code
 minikube service flask-service
-A URL such as the following will appear:
+You will receive a URL like:
 
 cpp
 Copy code
 http://127.0.0.1:<port>/
-Access in a browser or using curl.
+Open this in a browser or call using curl.
 
 6. Testing API
-Root endpoint:
+Test root:
 
-bash
+sh
 Copy code
 curl http://127.0.0.1:<port>/
-Insert sample data:
+Insert JSON data:
 
-bash
+sh
 Copy code
 curl -X POST -H "Content-Type: application/json" \
 -d '{"name":"test"}' http://127.0.0.1:<port>/data
-Retrieve data:
+Retrieve stored data:
 
-bash
+sh
 Copy code
 curl http://127.0.0.1:<port>/data
 7. DNS Resolution in Kubernetes
-Kubernetes automatically assigns DNS names to services using CoreDNS.
+Kubernetes provides internal DNS through CoreDNS.
 
-DNS format:
+Service DNS format:
 
 pgsql
 Copy code
 <service-name>.<namespace>.svc.cluster.local
-In this project:
+Example in this project:
 
 pgsql
 Copy code
-MongoDB Service DNS: mongo.default.svc.cluster.local
-Flask connects to MongoDB using only:
+mongo.default.svc.cluster.local
+The Flask application connects to MongoDB using only:
 
 nginx
 Copy code
 mongo
-This ensures reliable communication even when pod IPs change.
+This ensures communication remains valid even if MongoDB Pod IP changes.
 
 8. Resource Requests and Limits
 Component	CPU Request	CPU Limit	Memory Request	Memory Limit
-Flask App	0.2	0.5	250Mi	500Mi
-MongoDB	0.2	0.5	250Mi	500Mi
+Flask App	0.2 CPU	0.5 CPU	250Mi	500Mi
+MongoDB	0.2 CPU	0.5 CPU	250Mi	500Mi
 
-Requests ensure minimum guaranteed resources.
-Limits prevent a container from consuming excessive CPU or memory.
+Requests guarantee resources for stable performance.
+Limits prevent containers from consuming excessive cluster resources.
 
 9. Design Choices
-Deployment used for Flask as it is stateless and scalable.
+Flask is stateless, so it uses a Deployment for scaling.
 
-StatefulSet used for MongoDB because data persistence and stable pod identity are required.
+MongoDB requires persistent identity, so it uses a StatefulSet.
 
-Persistent Volume Claim ensures MongoDB data is retained across restarts.
+Data persistence is ensured using PV and PVC.
 
-ClusterIP Service restricts MongoDB access within cluster only.
+MongoDB Service is ClusterIP for internal-only access.
 
-NodePort Service exposes Flask externally through Minikube.
+Flask Service is NodePort to enable access from Minikube.
 
-Secrets store database credentials securely.
+Secrets are used to securely manage database credentials.
 
-HPA used for automatic scaling based on CPU usage.
+HPA is configured to automatically scale Flask based on CPU usage.
 
 10. Testing Scenarios
-Database Communication:
+Database functionality was verified using POST and GET requests on /data.
 
-Verified by sending POST requests to /data and retrieving data with GET requests.
+Autoscaling load test was performed with continuous curls:
 
-Autoscaling Test:
+sh
+Copy code
+while true; do curl http://127.0.0.1:<port>/ > /dev/null; done
+Observed behavior:
 
-Continuous curl requests were executed to increase CPU load.
+CPU usage exceeded 70%
 
-HPA scaled replicas when CPU exceeded 70 percent threshold.
+Replicas increased from 2 to higher count
 
-After stopping load, HPA scaled replicas back down to two.
+After load stopped, replicas returned to minimum of 2
 
-Observed behavior confirms proper autoscaling and database integration.
+This confirms autoscaling is working correctly.
