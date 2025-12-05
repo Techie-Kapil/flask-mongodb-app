@@ -1,153 +1,175 @@
-#Flask + MongoDB Kubernetes Deployment
+# Flask + MongoDB Kubernetes Deployment  
+Assignment Submission – Arpit Thakur
 
+## 1. Project Overview
 
-1. Project Overview
+This project demonstrates how to containerize and deploy a Python Flask application connected to a MongoDB database on a Kubernetes cluster using Minikube.
 
-This project demonstrates how to containerize and deploy a Python Flask application connected to a MongoDB database on a Kubernetes cluster using Minikube. The Flask application provides two endpoints:
+The Flask application exposes two endpoints:
 
-Endpoint	Description
-/	Returns a welcome message with the current server time
-/data	Supports POST to insert JSON data and GET to retrieve data stored in MongoDB
+| Endpoint | Purpose |
+|---------|---------|
+| `/` | Returns a welcome message with current server time |
+| `/data` | POST inserts JSON data, GET retrieves stored data |
 
-MongoDB is deployed with authentication enabled and uses persistent storage. The Flask application is deployed with autoscaling capability based on CPU metrics. Kubernetes DNS ensures inter-pod communication without depending on IP addresses.
+MongoDB is deployed with authentication enabled and persistent volume storage. Flask is deployed as a scalable application using Kubernetes Horizontal Pod Autoscaler (HPA). DNS-based service discovery ensures inter-pod communication without IP dependency.
 
-2. Repository Structure
+---
+
+## 2. Repository Structure
+
 .
 ├── app.py
 ├── requirements.txt
 ├── Dockerfile
 ├── README.md
 └── k8s/
-    ├── mongo-secret.yaml
-    ├── mongo-pv-pvc.yaml
-    ├── mongo-statefulset.yaml
-    ├── mongo-service.yaml
-    ├── flask-deployment.yaml
-    ├── flask-service.yaml
-    └── flask-hpa.yaml
+├── mongo-secret.yaml
+├── mongo-pv-pvc.yaml
+├── mongo-statefulset.yaml
+├── mongo-service.yaml
+├── flask-deployment.yaml
+├── flask-service.yaml
+└── flask-hpa.yaml
 
-3. Docker Image Build and Push Instructions
+yaml
+Copy code
 
-Build the container image:
+---
 
+## 3. Docker Image Build and Push Instructions
+
+Build Docker image:
+```bash
 docker build -t kapil0321/flask-mongodb-app:latest .
-
-
 Login to Docker Hub:
 
+bash
+Copy code
 docker login
-
-
 Push image:
 
+bash
+Copy code
 docker push kapil0321/flask-mongodb-app:latest
-
 4. Kubernetes Deployment Guide
-
 Start Minikube:
 
+bash
+Copy code
 minikube start --driver=docker
+Enable metrics server:
 
-
-Enable metrics-server (required for HPA):
-
+bash
+Copy code
 minikube addons enable metrics-server
-
-
 Deploy MongoDB:
 
+bash
+Copy code
 kubectl apply -f k8s/mongo-secret.yaml
 kubectl apply -f k8s/mongo-pv-pvc.yaml
 kubectl apply -f k8s/mongo-statefulset.yaml
 kubectl apply -f k8s/mongo-service.yaml
+Deploy Flask Application:
 
-
-Deploy Flask application:
-
+bash
+Copy code
 kubectl apply -f k8s/flask-deployment.yaml
 kubectl apply -f k8s/flask-service.yaml
 kubectl apply -f k8s/flask-hpa.yaml
+Verify:
 
-
-Check resources:
-
+bash
+Copy code
 kubectl get pods
 kubectl get svc
 kubectl get deploy
 kubectl get hpa
-
 5. Accessing the Application
+Expose the Flask service:
 
-Expose the NodePort service:
-
+bash
+Copy code
 minikube service flask-service
+A URL such as the following will appear:
 
-
-This will provide a URL such as:
-
+cpp
+Copy code
 http://127.0.0.1:<port>/
+Access in a browser or using curl.
 
-6. API Testing
+6. Testing API
+Root endpoint:
 
-Test GET root endpoint:
-
+bash
+Copy code
 curl http://127.0.0.1:<port>/
+Insert sample data:
 
-
-Insert a record:
-
+bash
+Copy code
 curl -X POST -H "Content-Type: application/json" \
 -d '{"name":"test"}' http://127.0.0.1:<port>/data
+Retrieve data:
 
-
-Retrieve stored data:
-
+bash
+Copy code
 curl http://127.0.0.1:<port>/data
-
 7. DNS Resolution in Kubernetes
+Kubernetes automatically assigns DNS names to services using CoreDNS.
 
-CoreDNS provides automatic service discovery. Each service receives a DNS name in the format:
+DNS format:
 
-<service>.<namespace>.svc.cluster.local
+pgsql
+Copy code
+<service-name>.<namespace>.svc.cluster.local
+In this project:
 
+pgsql
+Copy code
+MongoDB Service DNS: mongo.default.svc.cluster.local
+Flask connects to MongoDB using only:
 
-Flask connects to MongoDB using only the service name:
-
+nginx
+Copy code
 mongo
-
-
-This ensures reliable communication even if pod IPs change after restarts or rescheduling.
+This ensures reliable communication even when pod IPs change.
 
 8. Resource Requests and Limits
-
-Both Flask and MongoDB have resource constraints applied:
-
 Component	CPU Request	CPU Limit	Memory Request	Memory Limit
 Flask App	0.2	0.5	250Mi	500Mi
 MongoDB	0.2	0.5	250Mi	500Mi
 
-Requests ensure the scheduler assigns sufficient resources. Limits protect the cluster from performance degradation due to resource overuse.
+Requests ensure minimum guaranteed resources.
+Limits prevent a container from consuming excessive CPU or memory.
 
 9. Design Choices
+Deployment used for Flask as it is stateless and scalable.
 
-Deployment used for Flask because it is stateless and horizontally scalable.
-StatefulSet used for MongoDB because persistent identity and storage are required.
-ClusterIP Service used for MongoDB to restrict access within the cluster.
-NodePort Service used for Flask to allow external access through Minikube.
-Secrets store MongoDB authentication credentials securely.
-Horizontal Pod Autoscaler adjusts replica count based on CPU usage.
+StatefulSet used for MongoDB because data persistence and stable pod identity are required.
 
-10. Testing Scenarios for Autoscaling and Database
+Persistent Volume Claim ensures MongoDB data is retained across restarts.
 
-Database operations were successfully validated using POST and GET requests.
-Autoscaling was tested by generating continuous load using repeated curl commands.
+ClusterIP Service restricts MongoDB access within cluster only.
 
-Observed behavior:
+NodePort Service exposes Flask externally through Minikube.
 
-CPU usage increased beyond 70 percent
+Secrets store database credentials securely.
 
-HPA scaled Flask deployment from 2 replicas up to additional pods
+HPA used for automatic scaling based on CPU usage.
 
-When the load was stopped, it scaled back to 2 replicas
+10. Testing Scenarios
+Database Communication:
 
-This confirmed proper autoscaling functionality.
+Verified by sending POST requests to /data and retrieving data with GET requests.
+
+Autoscaling Test:
+
+Continuous curl requests were executed to increase CPU load.
+
+HPA scaled replicas when CPU exceeded 70 percent threshold.
+
+After stopping load, HPA scaled replicas back down to two.
+
+Observed behavior confirms proper autoscaling and database integration.
