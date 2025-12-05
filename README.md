@@ -83,7 +83,7 @@ http://127.0.0.1:PORT/
 ```
 Access in a browser or using curl.
 
-##6. Testing API
+## 6. Testing API
 
 Root endpoint:
 ```bash
